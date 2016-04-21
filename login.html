@@ -8,7 +8,7 @@
 <link href="css/style.css" rel="stylesheet" type="text/css"/>
 <link rel="stylesheet" href="css/plugins/sweetalert/sweetalert.css"/>
 </head>
-<body>
+<body onload = getAllData()>
 <div class="container">
 	<div class="container_wrap">
 		<div class="header_top">
@@ -44,10 +44,6 @@
 			  	<h3>Registered Customers</h3>
 				<p>If you have an account with us, please log in.</p>
                    <form id="form1">
-                       <div id="myAlert" class="alert alert-warning">
-                           <a href="#" class="close" data-dismiss="alert">&times;</a>
-                           <strong>成功！</strong>结果是成功的。
-                       </div>
                        <div class="form-group">
                            <div>
                                <span>用户名<label>*</label></span>
@@ -62,9 +58,6 @@
                        </div>
                        <a class="forgot" href="#">Forgot Your Password?</a>
                        <input type="button" value="登录" id="login">
-                       <div class="pull-right" style="padding-top: 0.5em">
-                           <a class="forgot" href="register.html">还没有账号? 立即注册</a>
-                       </div>
                    </form>
 			   </div>	
 			   <div class="clearfix"> </div>
@@ -128,23 +121,26 @@
 <script src="js/jquery.cookie.js"></script>
 <script src="js/bmob/bmob-min.js"></script>
 <script src="js/plugins/validate/jquery.validate.min.js"></script>
-<script src="tooltip/jquery.poshytip.min.js"></script>
 <script src="js/plugins/sweetalert/sweetalert.min.js"></script>
 
 <script>
+	var gb = {
+		getUsername : [],
+		getPassword : []
+	}
     $(function(){
-        //初始化bmob
-        Bmob.initialize("02448429eba5a16fbd1ecc31efb745ae", "0bd2b88334ff05852ff6454ea3aeecc4");
         $('#form1').validate({
             rules: {
                 username: {
                     required: true,
-                    minlength: 2
+                    minlength: 2,
+					usersame: true
                 },
                 password: {
                     required: true,
                     minlength: 6,
-                    maxlength: 20
+                    maxlength: 20,
+					psderror: true
                 }
 
             },
@@ -160,51 +156,51 @@
                 }
             }
         });
-
+		//自定义登录验证
+		jQuery.validator.addMethod("usersame", function(value, element) {
+			var username = $.trim($('#username').val());
+            var password = $.trim($('#password').val());
+			var	uFlag = compareLogin(gb.getUsername,gb.getPassword,username,password).uFlag;
+			return uFlag;
+		 }, "用户名不存在");
+		 
+		 jQuery.validator.addMethod("psderror", function(value, element) {
+			var username = $.trim($('#username').val());
+            var password = $.trim($('#password').val());
+            var pFlag = compareLogin(gb.getUsername,gb.getPassword,username,password).pFlag;
+			return pFlag;
+		 }, "密码错误");
+		 
         var loginName = $.cookie('username'); // 读取 cookie
         $('.header_right_box li p a').text(loginName).attr('href','');
 
         //登录按钮
         $('#login').click(function(){
             if($("#form1").valid()){
-                var username = $.trim($('#username').val());
-                var password = $.trim($('#password').val());
-                login(function(results){
-                    var getUsername = [];
-                    var getPassword = [];
-                    $.each(results,function(i,v){
-                        getUsername.push(results[i].attributes.username);
-                        getPassword.push(results[i].attributes.password);
-                    });
-                    var uFlag = compareLogin(getUsername,getPassword,username,password).uFlag;
-                    var pFlag = compareLogin(getUsername,getPassword,username,password).pFlag;
-                    if(!uFlag){
-                        $('.validArea').text('用户不存在').show();
-                    }else if(!pFlag){
-                        $('.validArea').text('密码不正确').show();
-                    }else{
-                        $.cookie('username', username, { expires: 0.01 });
-                        //localStorage.setItem('username',username);
-                        swal({
-                            title: "登录成功！",
-                            text: "1秒后自动跳转",
-                            type: "success",
-                            timer: 1200
-                        },function(){
-                            window.location.href = 'single.html';
-                        });
-
-                    }
+                $.cookie('username', username, { expires: 0.01 });
+                    //localStorage.setItem('username',username);
+					swal({
+                        title: "登录成功！",
+                        text: "1秒后自动跳转",
+                        type: "success",
+                        timer: 1200
+					},function(){
+                        window.location.href = 'single.html';
                 });
-            }
+			}
         });
     });
-    function login(callback){
+    function getAllData(){
+		//初始化bmob
+        Bmob.initialize("02448429eba5a16fbd1ecc31efb745ae", "0bd2b88334ff05852ff6454ea3aeecc4");
         var user = Bmob.Object.extend("user");
         var getUser = new Bmob.Query(user);
         getUser.select('username','password');
         getUser.find().then(function(results) {
-                callback(results);
+            $.each(results,function(i,v){
+                gb.getUsername.push(results[i].attributes.username);
+                gb.getPassword.push(results[i].attributes.password);
+            });    
         });
     }
     /**@param1: args[0] user arr[]
@@ -223,9 +219,13 @@
                 $.each(args[1],function(index,value){
                     if(args[3] === args[1][i]){
                         flag2 = true;
-                    }
+                    }else{
+						flag2 = false;
+					}
                 });
-            }
+            }else{
+				flag1 = false;
+			}
         });
         return {
             uFlag: flag1,
